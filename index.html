@@ -115,6 +115,7 @@
       transform: translateY(-50%);
       background: var(--yes);
       color: #fff;
+      transition: transform .12s ease, background .12s ease;
     }
 
     #yesBtn:hover { background: var(--yesHover); }
@@ -126,7 +127,7 @@
       background: #e5e7eb;
       color: #111827;
       transition: none;
-      z-index: 20; /* ALWAYS above text */
+      z-index: 20;
     }
 
     .hint {
@@ -178,7 +179,8 @@
 
     <section class="result" id="result">
       <h2>YAY 💘</h2>
-      <img src="8.png" alt="center photo">
+      <!-- FIX #2: correct image under YAY -->
+      <img src="IMG_9938.jpg" alt="center photo">
     </section>
   </main>
 
@@ -208,6 +210,13 @@
       const n = noBtn.style.left || "62%";
       yesBtn.style.left = n;
       noBtn.style.left = y;
+    }
+
+    /* FIX #1: YES grows again */
+    let yesScale = 1;
+    function growYes() {
+      yesScale = Math.min(2.5, yesScale + 0.08);
+      yesBtn.style.transform = `translateY(-50%) scale(${yesScale})`;
     }
 
     /* ---------- CURSOR TRACKING ---------- */
@@ -243,6 +252,9 @@
       noBtn.style.left = x + "px";
       noBtn.style.top  = y + "px";
       noBtn.style.transform = "none";
+
+      // grow YES every time NO teleports (like before)
+      growYes();
     }
 
     function onNoAttempt() {
