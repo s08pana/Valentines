@@ -29,7 +29,7 @@
       overflow: hidden;
     }
 
-    /* ====== FLOATING LAYER ====== */
+    /* ====== FLOATING PHOTOS ====== */
     #floatingPhotos {
       position: fixed;
       inset: 0;
@@ -44,7 +44,6 @@
       border-radius: 14px;
       overflow: hidden;
       animation: floatY 6s ease-in-out infinite;
-      will-change: transform;
       filter: drop-shadow(0 10px 18px rgba(0,0,0,0.2));
     }
 
@@ -54,7 +53,6 @@
       object-fit: cover;
     }
 
-    /* pink overlay */
     .float-photo::after {
       content: "";
       position: absolute;
@@ -72,7 +70,7 @@
       100% { transform: translateY(0); }
     }
 
-    /* ====== MAIN CARD ====== */
+    /* ====== CARD ====== */
     .card {
       position: relative;
       width: min(720px, 92vw);
@@ -95,6 +93,7 @@
       width: min(520px, 92%);
       height: 160px;
       margin: 0 auto;
+      z-index: 5;
     }
 
     button {
@@ -107,6 +106,7 @@
       cursor: pointer;
       box-shadow: 0 10px 24px rgba(0,0,0,.14);
       user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     #yesBtn {
@@ -126,12 +126,14 @@
       background: #e5e7eb;
       color: #111827;
       transition: none;
+      z-index: 20; /* ALWAYS above text */
     }
 
     .hint {
       margin-top: 16px;
       font-size: 16px;
       opacity: .85;
+      z-index: 1;
     }
 
     .result {
@@ -174,7 +176,6 @@
 
     <div class="hint" id="hint">i love you</div>
 
-    <!-- RESULT -->
     <section class="result" id="result">
       <h2>YAY 💘</h2>
       <img src="8.png" alt="center photo">
@@ -185,15 +186,14 @@
        ===================== JAVASCRIPT ====================
        ===================================================== -->
   <script>
+    const card = document.getElementById("card");
+    const zone = document.getElementById("zone");
     const yesBtn = document.getElementById("yesBtn");
-    const noBtn  = document.getElementById("noBtn");
-    const zone   = document.getElementById("zone");
-    const hint   = document.getElementById("hint");
+    const noBtn = document.getElementById("noBtn");
+    const hint = document.getElementById("hint");
     const result = document.getElementById("result");
-    const card   = document.getElementById("card");
     const floatingPhotos = document.getElementById("floatingPhotos");
 
-    /* ---------- STAGES ---------- */
     let stage = 0;
 
     function updateHint() {
@@ -205,35 +205,75 @@
 
     function swapButtons() {
       const y = yesBtn.style.left || "18%";
-      const n = noBtn.style.left  || "62%";
+      const n = noBtn.style.left || "62%";
       yesBtn.style.left = n;
-      noBtn.style.left  = y;
+      noBtn.style.left = y;
     }
 
+    /* ---------- CURSOR TRACKING ---------- */
+    let cursorX = null, cursorY = null;
+    document.addEventListener("pointermove", e => {
+      cursorX = e.clientX;
+      cursorY = e.clientY;
+    });
+
+    /* ---------- STABLE TELEPORT ---------- */
     function teleportNo() {
-      const rect = card.getBoundingClientRect();
-      noBtn.style.left = Math.random() * (rect.width - 80) + "px";
-      noBtn.style.top  = Math.random() * (rect.height - 80) + "px";
+      const zoneRect = zone.getBoundingClientRect();
+      const btnRect = noBtn.getBoundingClientRect();
+
+      const padding = 8;
+      const minDist = 120;
+
+      let x, y, tries = 0;
+
+      do {
+        x = Math.random() * (zoneRect.width - btnRect.width - padding * 2) + padding;
+        y = Math.random() * (zoneRect.height - btnRect.height - padding * 2) + padding;
+        tries++;
+      } while (
+        cursorX !== null &&
+        Math.hypot(
+          zoneRect.left + x - cursorX,
+          zoneRect.top + y - cursorY
+        ) < minDist &&
+        tries < 15
+      );
+
+      noBtn.style.left = x + "px";
+      noBtn.style.top  = y + "px";
+      noBtn.style.transform = "none";
     }
 
     function onNoAttempt() {
-      if (stage === 0) { swapButtons(); stage = 1; updateHint(); return; }
-      if (stage === 1) { swapButtons(); stage = 2; updateHint(); return; }
+      if (stage === 0) {
+        swapButtons();
+        stage = 1;
+        updateHint();
+        return;
+      }
+
+      if (stage === 1) {
+        swapButtons();
+        stage = 2;
+        updateHint();
+        return;
+      }
+
       stage = 3;
       updateHint();
       teleportNo();
     }
 
     noBtn.addEventListener("pointerenter", onNoAttempt);
-    noBtn.addEventListener("pointerdown", e => { e.preventDefault(); onNoAttempt(); });
+    noBtn.addEventListener("pointerdown", e => {
+      e.preventDefault();
+      onNoAttempt();
+    });
     noBtn.addEventListener("click", e => e.preventDefault());
 
     /* ---------- FLOATING PHOTOS ---------- */
-    const photoFiles = [
-      "1.png","2.png","3.png","4.png",
-      "5.png","6.png","7.png","8.png"
-    ];
-
+    const photoFiles = ["1.png","2.png","3.png","4.png","5.png","6.png","7.png","8.png"];
     const PHOTO_SIZE = 80;
     const MIN_DIST = 100;
 
@@ -263,7 +303,7 @@
             pos.y < cardRect.bottom
           ) ||
           placed.some(p => distance(p, pos) < MIN_DIST) &&
-          tries < 50
+          tries < 60
         );
 
         placed.push(pos);
@@ -272,24 +312,22 @@
         el.className = "float-photo";
         el.style.left = pos.x + "px";
         el.style.top  = pos.y + "px";
-
         el.innerHTML = `<img src="${src}" alt="">`;
         floatingPhotos.appendChild(el);
 
-        const driftX = (Math.random() - 0.5) * 40;
-        const driftY = (Math.random() - 0.5) * 40;
+        const dx = (Math.random() - 0.5) * 40;
+        const dy = (Math.random() - 0.5) * 40;
         el.animate(
           [
             { transform: "translate(0,0)" },
-            { transform: `translate(${driftX}px, ${driftY}px)` },
+            { transform: `translate(${dx}px, ${dy}px)` },
             { transform: "translate(0,0)" }
           ],
-          { duration: 8000 + Math.random()*4000, iterations: Infinity }
+          { duration: 9000 + Math.random()*4000, iterations: Infinity }
         );
       });
     }
 
-    /* ---------- YES CLICK ---------- */
     yesBtn.addEventListener("click", () => {
       zone.style.display = "none";
       hint.style.display = "none";
@@ -302,4 +340,3 @@
 
 </body>
 </html>
-
