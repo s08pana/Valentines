@@ -7,7 +7,6 @@
 
   <!-- =====================================================
        ======================= CSS =========================
-       Edit styles here
        ===================================================== -->
   <style>
     :root {
@@ -30,54 +29,6 @@
       overflow: hidden;
     }
 
-    /* ====== LAYOUT ====== */
-    .layout {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 72px; /* pushes photos toward border */
-    }
-
-    /* ====== PHOTO WRAPPERS ====== */
-    .photo-wrap {
-      position: relative;
-      width: 360px;
-      height: 360px;
-      border-radius: 18px;
-      overflow: hidden;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.4s ease, transform 0.4s ease;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.18);
-    }
-
-    .photo-wrap.left {
-      transform: translateX(-150px);
-    }
-
-    .photo-wrap.right {
-      transform: translateX(150px);
-    }
-
-    .photo-wrap img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    /* pink gradient overlay (~15%) */
-    .photo-wrap::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(
-        135deg,
-        rgba(255, 59, 122, 0.15),
-        rgba(255, 214, 231, 0.15)
-      );
-      pointer-events: none;
-    }
-
     /* ====== MAIN CARD ====== */
     .card {
       position: relative;
@@ -88,6 +39,7 @@
       border-radius: 22px;
       text-align: center;
       box-shadow: 0 18px 60px rgba(0,0,0,.15);
+      z-index: 10;
     }
 
     h1 {
@@ -122,9 +74,7 @@
       color: #fff;
     }
 
-    #yesBtn:hover {
-      background: var(--yesHover);
-    }
+    #yesBtn:hover { background: var(--yesHover); }
 
     #noBtn {
       left: 62%;
@@ -132,7 +82,7 @@
       transform: translateY(-50%);
       background: #e5e7eb;
       color: #111827;
-      transition: none; /* instant teleport */
+      transition: none;
     }
 
     .hint {
@@ -147,68 +97,91 @@
       animation: pop .4s ease;
     }
 
+    .result img {
+      width: 260px;
+      height: 260px;
+      object-fit: cover;
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+    }
+
     @keyframes pop {
       from { transform: scale(.96); opacity: 0; }
       to   { transform: scale(1); opacity: 1; }
+    }
+
+    /* ====== FLOATING PHOTOS ====== */
+    .float-photo {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      border-radius: 14px;
+      overflow: hidden;
+      pointer-events: none;
+      opacity: 0;
+      animation: float 6s ease-in-out infinite;
+      z-index: 1;
+    }
+
+    .float-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* pink overlay */
+    .float-photo::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(255, 59, 122, 0.15),
+        rgba(255, 214, 231, 0.15)
+      );
+    }
+
+    @keyframes float {
+      0%   { transform: translateY(0); }
+      50%  { transform: translateY(-14px); }
+      100% { transform: translateY(0); }
     }
   </style>
 </head>
 
 <body>
 
-  <div class="layout">
+  <!-- FLOATING PHOTOS (hidden initially) -->
+  <div id="floatingPhotos"></div>
 
-    <!-- LEFT PHOTO -->
-    <div class="photo-wrap left">
-      <img src="IMG_1336.jpg" alt="photo left">
-    </div>
+  <!-- MAIN CARD -->
+  <main class="card" id="card">
+    <h1>will you be my valentine? 💖</h1>
 
-    <!-- MAIN CARD -->
-    <main class="card" id="card">
-      <h1>diya will you be my valentine? 💖</h1>
+    <section class="button-zone" id="zone">
+      <button id="yesBtn">Yes</button>
+      <button id="noBtn">No</button>
+    </section>
 
-      <section class="button-zone" id="zone">
-        <button id="yesBtn">Yes</button>
-        <button id="noBtn">No</button>
-      </section>
+    <div class="hint" id="hint">i love you</div>
 
-      <div class="hint" id="hint">i love you</div>
-
-      <section class="result" id="result">
-        <h2>YAY 💘</h2>
-        <img
-          src="https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif"
-          width="300"
-          alt="celebration"
-        />
-      </section>
-    </main>
-
-    <!-- RIGHT PHOTO -->
-    <div class="photo-wrap right">
-      <img src="IMG_9938.jpg" alt="photo right">
-    </div>
-
-  </div>
+    <section class="result" id="result">
+      <img src="IMG_9938.jpg" alt="us 💘">
+    </section>
+  </main>
 
   <!-- =====================================================
        ===================== JAVASCRIPT ====================
-       Edit behavior here
        ===================================================== -->
   <script>
-    const card   = document.getElementById("card");
-    const zone   = document.getElementById("zone");
     const yesBtn = document.getElementById("yesBtn");
     const noBtn  = document.getElementById("noBtn");
+    const zone   = document.getElementById("zone");
     const hint   = document.getElementById("hint");
     const result = document.getElementById("result");
+    const floatingPhotos = document.getElementById("floatingPhotos");
 
-    /* ---------- STAGES ----------
-       0 = start
-       1 = first swap
-       2 = second swap
-       3 = teleport mode
-    ----------------------------- */
+    /* ---------- STAGE LOGIC ---------- */
     let stage = 0;
 
     function updateHint() {
@@ -218,102 +191,71 @@
       if (stage >= 3) hint.textContent = "you know the answer 😘";
     }
 
-    /* ---------- YES GROWS ---------- */
-    let yesScale = 1;
-    function growYes() {
-      yesScale = Math.min(2.5, yesScale + 0.08);
-      yesBtn.style.transform = `translateY(-50%) scale(${yesScale})`;
-    }
-
-    /* ---------- SWAP BUTTONS ---------- */
     function swapButtons() {
-      const yesLeft = yesBtn.style.left || "18%";
-      const noLeft  = noBtn.style.left  || "62%";
-      yesBtn.style.left = noLeft;
-      noBtn.style.left  = yesLeft;
+      const y = yesBtn.style.left || "18%";
+      const n = noBtn.style.left  || "62%";
+      yesBtn.style.left = n;
+      noBtn.style.left  = y;
     }
 
-    /* ---------- CURSOR TRACKING ---------- */
-    let cursorX = null;
-    let cursorY = null;
-
-    document.addEventListener("pointermove", e => {
-      cursorX = e.clientX;
-      cursorY = e.clientY;
-    });
-
-    /* ---------- TELEPORT NO ---------- */
     function teleportNo() {
-      const cardRect = card.getBoundingClientRect();
-      const btnRect  = noBtn.getBoundingClientRect();
-      const zoneRect = zone.getBoundingClientRect();
+      const card = document.getElementById("card").getBoundingClientRect();
+      const btn  = noBtn.getBoundingClientRect();
 
-      const padding = 12;
-      const minDistance = 120;
-      let x, y, tries = 0;
+      const x = Math.random() * (card.width - btn.width);
+      const y = Math.random() * (card.height - btn.height);
 
-      do {
-        const maxX = cardRect.width  - btnRect.width  - padding;
-        const maxY = cardRect.height - btnRect.height - padding;
-        x = Math.random() * maxX + padding;
-        y = Math.random() * maxY + padding;
-        tries++;
-      } while (
-        cursorX !== null &&
-        Math.hypot(
-          (cardRect.left + x) - cursorX,
-          (cardRect.top  + y) - cursorY
-        ) < minDistance &&
-        tries < 10
-      );
-
-      const offsetX = cardRect.left - zoneRect.left;
-      const offsetY = cardRect.top  - zoneRect.top;
-
-      noBtn.style.left = (x + offsetX) + "px";
-      noBtn.style.top  = (y + offsetY) + "px";
-
-      growYes();
+      noBtn.style.left = x + "px";
+      noBtn.style.top  = y + "px";
     }
 
-    /* ---------- NO ATTEMPTS ---------- */
     function onNoAttempt() {
-      if (stage === 0) {
-        swapButtons();
-        stage = 1;
-        updateHint();
-        return;
-      }
-
-      if (stage === 1) {
-        swapButtons();
-        stage = 2;
-        updateHint();
-        return;
-      }
-
+      if (stage === 0) { swapButtons(); stage = 1; updateHint(); return; }
+      if (stage === 1) { swapButtons(); stage = 2; updateHint(); return; }
       stage = 3;
       updateHint();
       teleportNo();
     }
 
     noBtn.addEventListener("pointerenter", onNoAttempt);
-    noBtn.addEventListener("pointerdown", e => {
-      e.preventDefault();
-      onNoAttempt();
-    });
+    noBtn.addEventListener("pointerdown", e => { e.preventDefault(); onNoAttempt(); });
     noBtn.addEventListener("click", e => e.preventDefault());
+
+    /* ---------- FLOATING PHOTO SPAWN ---------- */
+    const photoFiles = [
+      "DSC_0580.JPEG",
+      "IMG_1206.JPG",
+      "IMG_1336.jpg",
+      "IMG_1343.JPG",
+      "IMG_1420.jpg",
+      "IMG_1533.JPG",
+      "IMG_1624.JPG",
+      "IMG_9938.jpg"
+    ];
+
+    function spawnFloatingPhotos() {
+      photoFiles.forEach((src, i) => {
+        const div = document.createElement("div");
+        div.className = "float-photo";
+        div.style.left = Math.random() * 90 + "vw";
+        div.style.top  = Math.random() * 90 + "vh";
+        div.style.animationDelay = (i * 0.6) + "s";
+
+        div.innerHTML = `<img src="${src}" alt="floating photo">`;
+        floatingPhotos.appendChild(div);
+
+        setTimeout(() => {
+          div.style.opacity = "1";
+        }, 100);
+      });
+    }
 
     /* ---------- YES CLICK ---------- */
     yesBtn.addEventListener("click", () => {
       zone.style.display = "none";
       hint.style.display = "none";
       result.style.display = "block";
-
-      document.querySelectorAll(".photo-wrap").forEach(photo => {
-        photo.style.opacity = "1";
-        photo.style.transform = "translateX(0)";
-      });
+      spawnFloatingPhotos();
     });
 
     updateHint();
@@ -321,8 +263,3 @@
 
 </body>
 </html>
-
-
-
-
-
